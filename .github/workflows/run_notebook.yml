@@ -1,0 +1,107 @@
+name: Run Income Data Wrangling Notebook
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly on Sunday at midnight
+
+jobs:
+  run-notebook:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10']
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install jupyter nbconvert pandas scikit-learn matplotlib seaborn ucimlrepo
+    
+    - name: Create output directory
+      run: mkdir -p notebook_outputs
+    
+    - name: Run Jupyter Notebook
+      run: |
+        jupyter nbconvert --to notebook --execute \
+          --ExecutePreprocessor.timeout=3600 \
+          --output-dir=notebook_outputs \
+          income_data_wrangling.ipynb
+    
+    - name: Convert notebook to HTML
+      run: |
+        jupyter nbconvert --to html \
+          --output-dir=notebook_outputs \
+          income_data_wrangling.ipynb
+    
+    - name: Extract and save visualizations
+      run: |
+        python -c "
+import json
+import base64
+import os
+
+with open('income_data_wrangling.ipynb', 'r') as f:
+    notebook = json.load(f)
+
+output_dir = 'notebook_outputs/diagrams'
+os.makedirs(output_dir, exist_ok=True)
+
+img_count = 0
+for cell in notebook['cells']:
+    if 'outputs' in cell:
+        for output in cell['outputs']:
+            if 'data' in output and 'image/png' in output['data']:
+                img_count += 1
+                img_data = output['data']['image/png']
+                
+                # Handle both list and string formats
+                if isinstance(img_data, list):
+                    img_data = ''.join(img_data)
+                
+                img_bytes = base64.b64decode(img_data)
+                with open(f'{output_dir}/visualization_{img_count}.png', 'wb') as img_file:
+                    img_file.write(img_bytes)
+
+print(f'Extracted {img_count} visualization(s)')
+        "
+    
+    - name: Upload notebook output as artifact
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: notebook-output-py${{ matrix.python-version }}
+        path: notebook_outputs/
+        retention-days: 30
+    
+    - name: Upload visualizations as artifact
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: notebook-diagrams-py${{ matrix.python-version }}
+        path: notebook_outputs/diagrams/
+        retention-days: 60
+    
+    - name: Report results
+      if: always()
+      run: |
+        echo "## Notebook Execution Report" >> $GITHUB_STEP_SUMMARY
+        echo "**Status**: Completed" >> $GITHUB_STEP_SUMMARY
+        echo "**Python Version**: ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Artifacts Generated:" >> $GITHUB_STEP_SUMMARY
+        echo "- Executed notebook (HTML)" >> $GITHUB_STEP_SUMMARY
+        echo "- Visualizations (PNG diagrams)" >> $GITHUB_STEP_SUMMARY
+        echo "- Analysis outputs" >> $GITHUB_STEP_SUMMARY
