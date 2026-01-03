@@ -48,35 +48,35 @@ jobs:
     
     - name: Extract and save visualizations
       run: |
-        python -c "
-import json
-import base64
-import os
-
-with open('income_data_wrangling.ipynb', 'r') as f:
-    notebook = json.load(f)
-
-output_dir = 'notebook_outputs/diagrams'
-os.makedirs(output_dir, exist_ok=True)
-
-img_count = 0
-for cell in notebook['cells']:
-    if 'outputs' in cell:
-        for output in cell['outputs']:
-            if 'data' in output and 'image/png' in output['data']:
-                img_count += 1
-                img_data = output['data']['image/png']
-                
-                # Handle both list and string formats
-                if isinstance(img_data, list):
-                    img_data = ''.join(img_data)
-                
-                img_bytes = base64.b64decode(img_data)
-                with open(f'{output_dir}/visualization_{img_count}.png', 'wb') as img_file:
-                    img_file.write(img_bytes)
-
-print(f'Extracted {img_count} visualization(s)')
-        "
+        python << 'EOF'
+        import json
+        import base64
+        import os
+        
+        with open('income_data_wrangling.ipynb', 'r') as f:
+            notebook = json.load(f)
+        
+        output_dir = 'notebook_outputs/diagrams'
+        os.makedirs(output_dir, exist_ok=True)
+        
+        img_count = 0
+        for cell in notebook['cells']:
+            if 'outputs' in cell:
+                for output in cell['outputs']:
+                    if 'data' in output and 'image/png' in output['data']:
+                        img_count += 1
+                        img_data = output['data']['image/png']
+                        
+                        # Handle both list and string formats
+                        if isinstance(img_data, list):
+                            img_data = ''.join(img_data)
+                        
+                        img_bytes = base64.b64decode(img_data)
+                        with open(f'{output_dir}/visualization_{img_count}.png', 'wb') as img_file:
+                            img_file.write(img_bytes)
+        
+        print(f'Extracted {img_count} visualization(s)')
+        EOF
     
     - name: Upload notebook output as artifact
       if: always()
