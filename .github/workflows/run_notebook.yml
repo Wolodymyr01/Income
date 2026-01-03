@@ -80,7 +80,7 @@ jobs:
     
     - name: Upload notebook output as artifact
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: notebook-output-py${{ matrix.python-version }}
         path: notebook_outputs/
@@ -88,7 +88,7 @@ jobs:
     
     - name: Upload visualizations as artifact
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: notebook-diagrams-py${{ matrix.python-version }}
         path: notebook_outputs/diagrams/
